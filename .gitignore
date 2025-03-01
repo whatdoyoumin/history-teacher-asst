@@ -3,3 +3,4 @@ venv/
 env/
 .env
 /chroma_db/
+/faiss_index_infopedia/
