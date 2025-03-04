@@ -14,6 +14,7 @@ import pandas as pd
 # Load environment variables
 load_dotenv()
 
+
 def load_vectorstore():
     embeddings = OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=os.getenv("OPENAI_API_KEY"))
     s3_bucket_name = os.getenv("s3_bucket_name")
@@ -101,7 +102,7 @@ Question: {question}
     def format_docs(docs):
         return "\n\n".join(doc.page_content[:500] for doc in docs)  # Trim content to speed up processing
     
-    retriever = vector_store.as_retriever(search_kwargs={"k": 3})  # Reduce number of retrieved documents
+    retriever = vector_store.as_retriever(search_kwargs={"k": 5})  # Reduce number of retrieved documents
     retrieved_docs = retriever.invoke(input_question)
     
     formatted_context = format_docs(retrieved_docs)
@@ -119,13 +120,40 @@ Question: {question}
     
     return {"answer": result.content, "context": retrieved_docs}
 
+
+
+def evaluate_sources(sources_df):
+    prompt = PromptTemplate.from_template(
+        template="""
+Evaluate the reliability of the following sources based on their type. Provide a reliability score (High, Medium, Low) and a brief justification for each.
+if it mentions Sec1 or Sec2, it is referring to the Secondary School Textbooks in Singapore.
+
+Sources:
+{sources}
+        """
+    )
+    sources_text = "\n".join([f"{row['Source']} - {row['URL']}" for _, row in sources_df.iterrows()])
+    
+    chain = (
+        RunnableLambda(lambda x: {"sources": x["sources"]})
+        | prompt
+        | ChatOpenAI(model="gpt-4o", temperature=0, openai_api_key=os.getenv("OPENAI_API_KEY"))
+    )
+    
+    result = chain.invoke({"sources": sources_text})
+    return result.content
+
+
+
+
 # Load FAISS index once and store in session state
 if 'vectorstore' not in st.session_state:
     st.session_state.vectorstore = load_vectorstore()
 
 # Streamlit UI
-st.title("Heritage Education Research Assistant")
-st.write("Ask a question related to Singapore's history and culture.")
+st.set_page_config(layout="wide")
+st.title("Heritage Education Research Assistant") 
+st.write("Ask a question relatesd to Singapore's history and culture.")
 
 # Apply custom CSS
 st.markdown(get_custom_css_modifier(), unsafe_allow_html=True)
@@ -164,3 +192,8 @@ if st.session_state.response:
             df_sources.dropna(axis=1, how='all', inplace=True)
             
             st.table(df_sources.set_index(pd.Index(["" for _ in range(len(df_sources))])))
+
+            # Source evaluation
+            st.subheader("Source Evaluation")
+            evaluation = evaluate_sources(df_sources)
+            st.write(evaluation)
