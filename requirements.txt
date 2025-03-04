@@ -9,3 +9,4 @@ python-dotenv
 faiss-cpu==1.10.0
 boto3==1.35.7
 openai==1.42.0
+httpx==0.27.0
