@@ -1,0 +1,8 @@
+.env
+venv
+.streamlit
+
+data
+faiss_index_full
+chroma_db
+.gitignore
