@@ -9,16 +9,17 @@
 - **VectorDB Creation.ipynb** - Vector database creation and testing
 - **requirements.txt** - `pip freeze` of my current environment, for reference.
 
-### Note to self on virtual environment:
-
-#### Creating a new virtual environment:
+### How to run the app main.py
 Run the following command in your project directory:
-
+1. Create virtual env ( do not repeat this step if u alr have a virtual env)
 ```bash
 python -m venv venv
 
-
-note to self on virtual env:
-
-to activate virtual env on git bash
+2. activate virtual env if needed ( on git bash ) virtual env is activated if u see (venv)
+to activate virtual env on git bash, run the command
 source ./venv/Scripts/activate
+
+3. run another command in git bash terminal
+pip install -r requirements.txt
+4. run the below command to start the application locally
+streamlit run main.py
