@@ -11,7 +11,7 @@
 
 ### How to run the app main.py
 Run the following command in your project directory:
-1. Create virtual env ( do not repeat this step if u alr have a virtual env)
+1. Create virtual env ( do not repeat this step if u alr have a virtual env folder)
 ```bash
 python -m venv venv
 ```
@@ -23,9 +23,12 @@ source ./venv/Scripts/activate
 3. run another command in git bash terminal
 ```bash
 pip install -r requirements.txt
+
 ```
-5. run the below command to start the application locally
+4. run generate_vectordb.py to generate the faiss vectordb (do not repeat this step if faiss_index_infopedia alr generated)
+
+5. run the below command in Bash to start the application locally
 
 ```bash
-streamlit run main.py
+streamlit run History_Assistant.py
 ```
