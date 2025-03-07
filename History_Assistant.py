@@ -18,6 +18,8 @@ from util.llm_util import evaluate_sources, ANSWER_QUESTION_PROMPT, EVALUATE_SOU
 load_dotenv()
 st.set_page_config(layout="wide")
 
+
+
 def load_vectorstore():
     embeddings = OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=os.getenv("OPENAI_API_KEY"))
     s3_bucket_name = os.getenv("s3_bucket_name")
@@ -92,7 +94,11 @@ def answer_question_from_vector_store(vector_store, input_question, include_info
     if not filtered_docs:
         return {"answer": "No relevant sources found based on your filters.", "context": []}
 
-    formatted_context = "\n\n".join(doc.page_content[:500] for doc in filtered_docs)
+    #formatted_context = "\n\n".join(doc.page_content[:500] for doc in filtered_docs)
+    formatted_context = "\n\n".join(
+    f"{' | '.join(f'{key}: {value}' for key, value in doc.metadata.items())}\n{doc.page_content[:500]}"
+    for doc in filtered_docs)
+
 
     rag_chain = (
         RunnableLambda(lambda x: {"context": x["context"], "question": x["question"]})

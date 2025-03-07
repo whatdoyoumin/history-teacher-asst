@@ -33,4 +33,4 @@ COPY --chown=app:app . ./
 # This is used for documentation purposes and does not actually publish the port.
 EXPOSE 8501
 # Specifies the command to run when the container starts. In this case, it runs a Streamlit application using the `main.py` script.
-CMD streamlit run Archaeology_Categoriser_Assistant.py
+CMD streamlit run History_Assistant.py
