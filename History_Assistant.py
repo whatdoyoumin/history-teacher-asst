@@ -139,19 +139,43 @@ def render_ui():
     if 'response' in st.session_state and st.session_state.response:
         st.subheader("Answer:")
         st.write(st.session_state.response['answer'])
-        
+
+
         with st.expander("Referenced Sources"):
             if st.session_state.response['context']:
                 sources_data = []
-                for doc in st.session_state.response['context']:
-                    source_info = {"Title": "", "Source": "", "URL": "", "Page Content": doc.page_content[:300] + "..."}
-                    for key, value in doc.metadata.items():
-                        if key in ['title', 'source', 'url']:
-                            source_info[key.capitalize()] = value
-                    sources_data.append(source_info)
                 
-                df_sources = pd.DataFrame(sources_data).dropna(axis=1, how='all')
+                for doc in st.session_state.response['context']:
+                    source_info = {
+                        "Title": doc.metadata.get("title", "Unknown"),
+                        "Source": doc.metadata.get("source", "Unknown"),
+                        "Page": doc.metadata.get("page", "N/A"),  # Include Page Number
+                        "Page Content": doc.page_content[:300] + "...",
+                        "URL": doc.metadata.get("url","N/A")
+                    }
+
+                    sources_data.append(source_info)
+
+                df_sources = pd.DataFrame(sources_data)
+
+                # Drop the "URL" column since it’s empty
+                #df_sources = df_sources.drop(columns=["URL"], errors="ignore")
+
                 st.table(df_sources)
+
+        
+        # with st.expander("Referenced Sources"):
+        #     if st.session_state.response['context']:
+        #         sources_data = []
+        #         for doc in st.session_state.response['context']:
+        #             source_info = {"Title": "", "Source": "", "URL": "", "Page Content": doc.page_content[:300] + "..."}
+        #             for key, value in doc.metadata.items():
+        #                 if key in ['title', 'source', 'url']:
+        #                     source_info[key.capitalize()] = value
+        #             sources_data.append(source_info)
+                
+        #         df_sources = pd.DataFrame(sources_data).dropna(axis=1, how='all')
+        #         st.table(df_sources)
                 
                 st.subheader("Source Evaluation")
                 evaluation = evaluate_sources(df_sources.reset_index(drop=True))

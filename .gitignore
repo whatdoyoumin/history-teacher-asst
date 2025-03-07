@@ -5,3 +5,5 @@ env/
 /chroma_db/
 /faiss_index_infopedia/
 /__pycache__/
+**/__pycache__/
+
