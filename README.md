@@ -5,8 +5,7 @@ This is a History Teaching Assistant.
 User will input a query about a certain topic " who is the founder of singapore?"
 Searches through a vectordb containing a large corpus of information from Roots, infopedia and school textbooks to generate lesson plans with citations.
 
-planned to deploy on ECS Fargate by April 2025.
-
+Deployed on ECS Fargate on AWS.
 
 - **sec1&2 pdf** - PDF files of the textbooks
 - **Data Exploration.ipynb** - Initial data exploration
@@ -41,4 +40,8 @@ ensure you got a .env file with OPENAI_API_KEY variable defined. get the key fro
 ```bash
 streamlit run History_Assistant.py
 ```
-m
+## Application UI
+
+![alt text](app.jpg)
+
+![alt text](app2.jpg)
