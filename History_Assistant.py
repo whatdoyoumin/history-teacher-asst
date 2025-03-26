@@ -11,14 +11,13 @@ from pydantic import BaseModel, ValidationError
 import re
 import pandas as pd
 from util.llm_util import evaluate_sources, ANSWER_QUESTION_PROMPT, EVALUATE_SOURCES_PROMPT
-
-
+from util.utility import check_password, get_custom_css_modifier
+from tavily import TavilyClient
+from langchain.schema import Document
 
 # Load environment variables
 load_dotenv()
 st.set_page_config(layout="wide")
-
-
 
 def load_vectorstore():
     embeddings = OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=os.getenv("OPENAI_API_KEY"))
@@ -49,14 +48,6 @@ def validate_answer_format(answer: str) -> bool:
     except ValidationError:
         return False
 
-def get_custom_css_modifier():
-    return """
-<style>
-#MainMenu { visibility: hidden; }
-footer { visibility: hidden; }
-div[data-testid="stForm"] { border: 0 !important; padding: 0px; }
-</style>
-"""
 
 def filter_docs_by_source(docs, include_infopedia, include_textbooks, include_roots):
     """Filter retrieved documents based on selected sources, allowing partial matches and better debugging."""
@@ -86,19 +77,76 @@ def filter_docs_by_source(docs, include_infopedia, include_textbooks, include_ro
     return filtered_docs
 
 
-def answer_question_from_vector_store(vector_store, input_question, include_infopedia, include_textbooks, include_roots):
-    retriever = vector_store.as_retriever(search_kwargs={"k": 10})
-    retrieved_docs = retriever.invoke(input_question)
-    filtered_docs = filter_docs_by_source(retrieved_docs, include_infopedia, include_textbooks, include_roots)
+# def answer_question_from_vector_store(vector_store, input_question, include_infopedia, include_textbooks, include_roots):
+#     retriever = vector_store.as_retriever(search_kwargs={"k": 10})
+#     retrieved_docs = retriever.invoke(input_question)
+#     filtered_docs = filter_docs_by_source(retrieved_docs, include_infopedia, include_textbooks, include_roots)
 
-    if not filtered_docs:
+#     if not filtered_docs:
+#         return {"answer": "No relevant sources found based on your filters.", "context": []}
+
+#     #formatted_context = "\n\n".join(doc.page_content[:500] for doc in filtered_docs)
+#     formatted_context = "\n\n".join(
+#     f"{' | '.join(f'{key}: {value}' for key, value in doc.metadata.items())}\n{doc.page_content[:500]}"
+#     for doc in filtered_docs)
+
+
+#     rag_chain = (
+#         RunnableLambda(lambda x: {"context": x["context"], "question": x["question"]})
+#         | ANSWER_QUESTION_PROMPT
+#         | ChatOpenAI(model="gpt-4o", temperature=0, openai_api_key=os.getenv("OPENAI_API_KEY"))
+#     )
+
+#     result = rag_chain.invoke({"context": formatted_context, "question": input_question})
+    
+#     if not validate_answer_format(result.content):
+#         return {"answer": "Validation failed. Please try again.", "context": []}
+    
+#     return {"answer": result.content, "context": filtered_docs}
+
+
+
+
+# Initialize Tavily Client
+tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+
+def hybrid_search(vector_store, query, include_infopedia, include_textbooks, include_roots, faiss_top_k=10, tavily_top_k=3):
+    """
+    Combines vector retrieval from FAISS with real-time search from Tavily.
+    """
+    retriever = vector_store.as_retriever(search_kwargs={"k": faiss_top_k})
+    faiss_results = retriever.invoke(query)
+
+    # Filter FAISS results based on user-selected sources
+    filtered_faiss_results = filter_docs_by_source(faiss_results, include_infopedia, include_textbooks, include_roots)
+
+    # Tavily Retrieval
+    tavily_response = tavily_client.search(query, search_depth="advanced")
+    tavily_results = tavily_response.get("results", [])[:tavily_top_k]
+
+    # Convert Tavily results into Document format
+    tavily_docs = [
+        Document(page_content=entry["content"], metadata={"source": entry["url"], "score": entry["score"]})
+        for entry in tavily_results
+    ]
+
+    # Combine and Sort Results
+    all_results = filtered_faiss_results + tavily_docs
+    sorted_results = sorted(all_results, key=lambda x: x.metadata.get("score", 1), reverse=True)
+
+    return sorted_results  # Return sorted documents
+
+
+def answer_question_hybrid_search(vector_store, input_question, include_infopedia, include_textbooks, include_roots):
+    retrieved_docs = hybrid_search(vector_store, input_question, include_infopedia, include_textbooks, include_roots)
+
+    if not retrieved_docs:
         return {"answer": "No relevant sources found based on your filters.", "context": []}
 
-    #formatted_context = "\n\n".join(doc.page_content[:500] for doc in filtered_docs)
     formatted_context = "\n\n".join(
-    f"{' | '.join(f'{key}: {value}' for key, value in doc.metadata.items())}\n{doc.page_content[:500]}"
-    for doc in filtered_docs)
-
+        f"{' | '.join(f'{key}: {value}' for key, value in doc.metadata.items())}\n{doc.page_content[:500]}"
+        for doc in retrieved_docs
+    )
 
     rag_chain = (
         RunnableLambda(lambda x: {"context": x["context"], "question": x["question"]})
@@ -107,30 +155,46 @@ def answer_question_from_vector_store(vector_store, input_question, include_info
     )
 
     result = rag_chain.invoke({"context": formatted_context, "question": input_question})
-    
+
     if not validate_answer_format(result.content):
         return {"answer": "Validation failed. Please try again.", "context": []}
-    
-    return {"answer": result.content, "context": filtered_docs}
+
+    return {"answer": result.content, "context": retrieved_docs}
 
 
 def render_ui():
-    st.title("Heritage Education Research Assistant") 
-    st.write("Ask a question related to Singapore's history and culture.")
+    st.title("Heritage Education Sources") 
+    st.write("Ask a question or topic related to Singapore's history and culture and we will retrieve the relevant sources. Do not ask questions outside of this topic!")
+    st.write("Filter the sources to narrow down the sources you want to retrieve from.")
     
     st.markdown(get_custom_css_modifier(), unsafe_allow_html=True)
     
-    # Sidebar filters
-    st.sidebar.header("Filter Sources")
-    include_infopedia = st.sidebar.checkbox("Infopedia", value=True)
-    include_textbooks = st.sidebar.checkbox("Sec1 & Sec2 Textbooks", value=True)
-    include_roots = st.sidebar.checkbox("Roots Articles", value=True)
+# Move filters to the main page
+    st.header("Filter Sources")
+    col1, col2, col3 = st.columns(3)  # Arrange filters in three columns for better layout
+
+    with col1:
+        include_infopedia = st.checkbox("Infopedia", value=True)
+    with col2:
+        include_textbooks = st.checkbox("Textbooks", value=True)
+    with col3:
+        include_roots = st.checkbox("Roots Articles", value=True)
     
     user_input = st.text_input("Enter your question:", key="query_input")
     
+    # if st.button("Get Answer"):
+    #     if user_input:
+    #         st.session_state.response = answer_question_from_vector_store(
+    #             st.session_state.vectorstore, user_input, include_infopedia, include_textbooks, include_roots
+    #         )
+    #     else:
+    #         st.warning("Please enter a question.")
+
+
+    # Update UI to Use Hybrid Search
     if st.button("Get Answer"):
         if user_input:
-            st.session_state.response = answer_question_from_vector_store(
+            st.session_state.response = answer_question_hybrid_search(
                 st.session_state.vectorstore, user_input, include_infopedia, include_textbooks, include_roots
             )
         else:
@@ -139,7 +203,6 @@ def render_ui():
     if 'response' in st.session_state and st.session_state.response:
         st.subheader("Answer:")
         st.write(st.session_state.response['answer'])
-
 
         with st.expander("Referenced Sources"):
             if st.session_state.response['context']:

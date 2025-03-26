@@ -29,3 +29,16 @@ def check_password():
     if "password_correct" in st.session_state:  
         st.error("😕 Password incorrect")  
     return False
+
+
+def get_custom_css_modifier():
+    return """
+<style>
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+div[data-testid="stForm"] { border: 0 !important; padding: 0px; }
+</style>
+"""
+
+
+

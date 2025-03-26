@@ -6,11 +6,29 @@ import re
 from pydantic import BaseModel, ValidationError
 
 # Define prompt templates
+
 EVALUATE_SOURCES_PROMPT = PromptTemplate.from_template("""
-Evaluate the reliability of the following sources based on their type. If the source mentions Sec1 or Sec2, it is referring to the Secondary 1 and 2 official school textbook respectively.
-Sources:
-{sources}
+You are an expert in assessing the reliability of information sources. Evaluate the reliability of each source listed below based on its type and metadata. Consider the following factors:  
+- **Source Type** (e.g., book, website, academic journal, official school textbook)  
+- **Authority** (e.g., official institution, personal blog, peer-reviewed publication)  
+- **Relevance & Accuracy** (e.g., does the source align with established knowledge?)  
+- **Potential Bias** (e.g., commercial, governmental, ideological bias)  
+- **Verifiability** (e.g., presence of citations, traceability of claims)  
+
+**Special Consideration:**  
+- If the source mentions "Sec1" or "Sec2," it refers to the official **Secondary 1 or 2 school textbook**, which is typically reliable for educational purposes.  
+
+### Sources for Evaluation:  
+{sources}  
+
+For each source, provide:  
+1. **Reliability Rating** (e.g., High, Medium, Low)  
+2. **Justification** (explain why you assigned this rating)  
+3. **Any Potential Biases or Limitations**  
+
+Ensure that your evaluation is structured, concise, and consistent across all sources.
 """)
+
 
 ANSWER_QUESTION_PROMPT = PromptTemplate.from_template("""
      You are the Heritage Education Research Assistant, an AI-powered tool designed to help educators in Singapore create comprehensive and balanced lesson plans about Singapore's history and culture. Your task is to provide multiple perspectives on historical questions, with a focus on validated sources from the National Heritage Board (NHB) and other reputable institutions.
@@ -46,6 +64,8 @@ After presenting the perspectives, suggest 2-3 discussion questions that could e
                                                       
 Remember, your goal is to provide educators with balanced, well-sourced information that they can use to create engaging and thought-provoking lessons about Singapore's history and culture. Each citation should be appropriately linked to the perspective it corresponds to, whether it is a page number, website link, or both.
 
+If the user asks a question unrelated to History - please say you don't have the available information and reccomend them to refer to other resources.
+                                                      
 Context: {context}
 
 Question: {question}
