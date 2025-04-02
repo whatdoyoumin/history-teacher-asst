@@ -16,7 +16,15 @@ from tavily import TavilyClient
 from langchain.schema import Document
 
 # Load environment variables
-load_dotenv()
+if load_dotenv('.env'):
+   #for local development
+   OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+else:
+   OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+if not OPENAI_API_KEY:
+    st.error("OPENAI_API_KEY not found in secrets.")
+    st.stop()
+
 st.set_page_config(layout="wide")
 
 def load_vectorstore():
@@ -28,11 +36,15 @@ def load_vectorstore():
         if not os.path.exists(f"{local_path}/index.faiss") or not os.path.exists(f"{local_path}/index.pkl"):
             s3 = boto3.resource("s3")
             os.makedirs(local_path, exist_ok=True)
-            s3.Bucket(s3_bucket_name).download_file("nhb-history-teacher/index.faiss", f"{local_path}/index.faiss")
-            s3.Bucket(s3_bucket_name).download_file("nhb-history-teacher/index.pkl", f"{local_path}/index.pkl")
+            s3.Bucket(s3_bucket_name).download_file("index.faiss", f"{local_path}/index.faiss")
+            s3.Bucket(s3_bucket_name).download_file("index.pkl", f"{local_path}/index.pkl")
+
+            #s3.Bucket(s3_bucket_name).download_file("nhb-history-teacher/index.faiss", f"{local_path}/index.faiss")
+            #s3.Bucket(s3_bucket_name).download_file("nhb-history-teacher/index.pkl", f"{local_path}/index.pkl")
         return FAISS.load_local(local_path, embeddings, allow_dangerous_deserialization=True)
     else:
         return FAISS.load_local("faiss_index_infopedia", embeddings, allow_dangerous_deserialization=True)
+
 
 class AnswerFormat(BaseModel):
     perspectives: list[str]
